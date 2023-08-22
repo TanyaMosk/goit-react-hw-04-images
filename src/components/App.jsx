@@ -1,101 +1,93 @@
-import { Component } from "react";
 import { ToastContainer, toast } from 'react-toastify';
 import { fetchImages } from "services/api";
 import { GlobalStyle } from "./GlobalStyle";
-import { Container, Text } from "./App.styled";
+import { Container, ImgText, Text } from "./App.styled";
+import  noImage  from '../image/noImage.jpg';
 import Searchbar from "./Searchbar";
 import ImageGallery from "./ImageGallery";
 import Button from "./Button";
 import Loader from "./Loader";
 import 'react-toastify/dist/ReactToastify.css';
+import { useEffect, useState } from 'react';
 
-export class App extends Component{
-  state = {
-    query: '',    
-    images: [],
-    page: 1,
-    loading: false,
-    noResults: false,
-  }   
-  
-  async componentDidUpdate(prevProps, prevState) { 
-    const prevQuery = prevState.query;
-    const nextQuery = this.state.query;   
+export const App = () => {
+  const [query, setQuery] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [noResults, setNoResults] = useState(false);
 
-    if (prevQuery !== nextQuery || prevState.page !== this.state.page) {     
+  useEffect(() => {
 
-      this.setState({ loading: true });    
-      
-      const newQuery = nextQuery.slice(nextQuery.indexOf('/') + 1);   
+    if (query === '') return;
 
-    try{
-      const images = await fetchImages(newQuery, this.state.page);
+    async function getImages() {
+
+      setLoading(true);
+
+      try {
+        const newQuery = query.slice(query.indexOf('/') + 1);
+        const images = await fetchImages(newQuery, page);        
        
-      if(images.hits.length === 0){
-        this.setState({
-          noResults: true,
-          loading: false,
-        })        
-        return;
-      };
-        this.setState(prevState => ({
-          images: [...prevState.images, ...images.hits],
-          noResults: false,
-        }));
-       
-    } catch(error) {
+        if (images.hits.length === 0) {
+          setNoResults(true);
+          setLoading(false);               
+          return;
+        };
+        setImages(prevState => [...prevState, ...images.hits]);
+        setNoResults(false);    
+        
+      } catch (error) {
         toast.error("Oops, something went wrong 🥺. Please try reloading the page!");
-        }
-        this.setState({ loading: false });         
-    };      
-  }
 
-  changeQuery = (newQuery) => {
-    this.setState({     
-      query: `${Date.now()}/${newQuery}`,
-      images: [],
-      page: 1,
-    });
-    
-   };
+      } finally {
+        setLoading(false);
+      }      
+    }
+    getImages() 
+  }, [query, page]);
 
-  setImage = (evt) => {
+  const changeQuery = (newQuery) => { 
+    setQuery(`${Date.now()}/${newQuery}`);
+    setImages([]);
+    setPage(1);     
+  };
+  
+  const setImage = (evt) => {
     evt.preventDefault()
     const queryValue = evt.target.elements.query.value.trim();
 
     if (queryValue === '') {      
       toast.info('🦄 Please fill in the field!');
-      this.setState({
-        images:[],
-      })
+      setImages([]);     
       return;
    };    
    
     if (queryValue !== '') {
-       this.changeQuery(queryValue) 
+       changeQuery(queryValue) 
         evt.target.reset()  
         return;
     }      
-   };
-
-  handleLoadMore = () => { 
-    this.setState(prevState => ({ page: prevState.page + 1 })); 
-    this.setState({ loading: true });  
+  };
+  
+  const handleLoadMore = () => { 
+    setPage(prevState => prevState + 1);
+    setLoading(true);   
   };  
 
-  render() {    
-    const { loading, images, noResults } = this.state;
-    return (
+  return (
     <Container>
-        <Searchbar onSubmit={this.setImage} />  
+        <Searchbar onSubmit={setImage} />  
 
          {noResults ? 
-         (<Text>Sorry, there are no images matching your search query. Please try again!🥺</Text>)
+        (<>
+        <Text>Sorry, there are no images matching your search query. Please try again!🥺</Text>
+        <ImgText src={noImage} alt="Oops, no images" /></>)
          :(<ImageGallery images={images} />)}  
 
         {loading && <Loader/>}
 
-        {images.length !== 0  && <Button onClick={this.handleLoadMore} />}   
+        {images.length !== 0  && <Button onClick={handleLoadMore} />}   
 
         <GlobalStyle />  
         <ToastContainer
@@ -112,6 +104,4 @@ export class App extends Component{
         />
     </Container>
     )
-  }
-}     
-  
+}
